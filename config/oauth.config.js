@@ -8,11 +8,11 @@
 
 const oauthConfig = {
   // Your Discord Application Client ID (public — safe to expose)
-  CLIENT_ID: process.env.DISCORD_CLIENT_ID || 'YOUR_CLIENT_ID_HERE',
+  CLIENT_ID: process.env.DISCORD_CLIENT_ID || '1529558164544946288',
 
   // Your Discord Application Client Secret (KEEP THIS PRIVATE)
   // Store as environment variable on Vercel, never hardcode here
-  CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET || 'YOUR_CLIENT_SECRET_HERE',
+  CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET || 'SIdphNIgClOvCWZ-_134ybHVje2uO7xt',
 
   // The URL Discord redirects to after login
   // Local development: http://localhost:3000/api/auth/callback
