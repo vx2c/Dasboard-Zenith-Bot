@@ -18,7 +18,7 @@ const oauthConfig = {
   // Local development: http://localhost:3000/api/auth/callback
   // Production:        https://rezenith.online/api/auth/callback
   // Add BOTH to your Discord app's Redirect URIs
-  REDIRECT_URI: process.env.REDIRECT_URI || 'https://rezenith.online/api/auth/callback',
+  REDIRECT_URI: process.env.REDIRECT_URI || 'https://www.rezenith.online/api/auth/callback',
 
   // Discord OAuth2 scopes needed
   SCOPES: ['identify', 'guilds'].join('%20'),
