@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReZenith — Zenith Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- ==================== CANVAS PARTICLES ==================== -->
+  <canvas id="particles-canvas"></canvas>
+
+  <!-- ==================== LOGIN PAGE ==================== -->
+  <div id="login-page" class="login-page">
+    <div class="login-glow"></div>
+    <div class="login-card glass">
+      <div class="login-logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <span class="logo-text">ReZenith</span>
+      </div>
+      <h1 class="login-title">Welcome Back</h1>
+      <p class="login-subtitle">Sign in with Discord to access the Zenith control panel.</p>
+      <a href="/api/auth/discord" class="btn btn-discord">
+        <i class="fa-brands fa-discord"></i>
+        Login with Discord
+      </a>
+      <p class="login-footer">
+        Manage your Zenith bot, tickets, roles, moderation, and more — all in one place.
+      </p>
+    </div>
+  </div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div id="dashboard" class="dashboard hidden">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="sidebar glass">
+      <div class="sidebar-header">
+        <div class="logo-icon small">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <span class="logo-text">ReZenith</span>
+        <button id="sidebar-toggle" class="sidebar-toggle-btn">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+
+      <!-- Server Info -->
+      <div class="server-info glass-inner">
+        <img id="guild-icon" src="" alt="Server" class="guild-avatar" />
+        <div class="guild-details">
+          <span id="guild-name" class="guild-name">Loading...</span>
+          <span class="guild-status online"><i class="fa-solid fa-circle"></i> Online</span>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">General</div>
+        <a href="#/" class="nav-item active" data-route="/">
+          <i class="fa-solid fa-house"></i>
+          <span>Home</span>
+        </a>
+        <a href="#/analytics" class="nav-item" data-route="/analytics">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Analytics</span>
+        </a>
+        <a href="#/bot-status" class="nav-item" data-route="/bot-status">
+          <i class="fa-solid fa-server"></i>
+          <span>Bot Status</span>
+        </a>
+
+        <div class="nav-section-label">Messaging</div>
+        <a href="#/messages" class="nav-item" data-route="/messages">
+          <i class="fa-solid fa-message"></i>
+          <span>Message Builder</span>
+        </a>
+        <a href="#/welcome" class="nav-item" data-route="/welcome">
+          <i class="fa-solid fa-door-open"></i>
+          <span>Welcome System</span>
+        </a>
+        <a href="#/goodbye" class="nav-item" data-route="/goodbye">
+          <i class="fa-solid fa-door-closed"></i>
+          <span>Goodbye System</span>
+        </a>
+
+        <div class="nav-section-label">Management</div>
+        <a href="#/autoroles" class="nav-item" data-route="/autoroles">
+          <i class="fa-solid fa-user-tag"></i>
+          <span>Auto Roles</span>
+        </a>
+        <a href="#/reaction-roles" class="nav-item" data-route="/reaction-roles">
+          <i class="fa-solid fa-face-smile"></i>
+          <span>Reaction Roles</span>
+        </a>
+        <a href="#/tickets" class="nav-item" data-route="/tickets">
+          <i class="fa-solid fa-ticket"></i>
+          <span>Tickets</span>
+        </a>
+        <a href="#/staff" class="nav-item" data-route="/staff">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Staff Applications</span>
+        </a>
+        <a href="#/moderation" class="nav-item" data-route="/moderation">
+          <i class="fa-solid fa-gavel"></i>
+          <span>Moderation</span>
+        </a>
+        <a href="#/levels" class="nav-item" data-route="/levels">
+          <i class="fa-solid fa-star"></i>
+          <span>Level System</span>
+        </a>
+
+        <div class="nav-section-label">Account</div>
+        <a href="#/settings" class="nav-item" data-route="/settings">
+          <i class="fa-solid fa-gear"></i>
+          <span>Settings</span>
+        </a>
+        <a href="/api/logout" class="nav-item danger">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Logout</span>
+        </a>
+      </nav>
+
+      <!-- User Info -->
+      <div class="sidebar-user glass-inner">
+        <img id="user-avatar" src="" alt="User" class="user-avatar" />
+        <div class="user-details">
+          <span id="user-name" class="user-name">Loading...</span>
+          <span id="user-tag" class="user-tag">#0000</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main id="main-content" class="main-content">
+      <!-- Injected by JS router -->
+    </main>
+
+  </div>
+
+  <!-- ==================== TOAST NOTIFICATIONS ==================== -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ==================== MODAL ==================== -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal-box" class="modal-box glass">
+      <div class="modal-header">
+        <h3 id="modal-title"></h3>
+        <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
