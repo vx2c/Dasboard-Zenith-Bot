@@ -74,8 +74,9 @@
 
 // ─── Auth State ────────────────────────────────────────────────────────────
 const Auth = {
-  user: null,
-  guild: null,
+  user:      null,
+  guild:     null,
+  guildInfo: null,   // full real data from /api/guild/info
 
   async load() {
     try {
@@ -88,6 +89,15 @@ const Auth = {
     } catch {
       return false;
     }
+  },
+
+  async loadGuildInfo() {
+    try {
+      const res = await fetch('/api/guild/info');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.connected) this.guildInfo = data;
+    } catch { /* silent */ }
   },
 
   logout() {
@@ -188,58 +198,109 @@ function toggleMobileSidebar() {
 
 // ─── Page: Home ────────────────────────────────────────────────────────────
 function renderHome(container) {
-  const guild = Auth.guild || {};
+  const g = Auth.guildInfo || {};
+  const botConnected = !!process_env('BOT_API_URL');
+
+  // Real numbers from Discord API (only available if bot token is set)
+  const memberCount = g.memberCount ? g.memberCount.toLocaleString() : '—';
+  const onlineCount = g.onlineCount ? g.onlineCount.toLocaleString() : '—';
+  const boostCount  = g.boostCount  != null ? g.boostCount  : '—';
+  const boostTier   = g.boostTier   != null ? g.boostTier   : '0';
+  const dataSource  = g.connected
+    ? '<span class="badge badge-green" style="font-size:11px;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> Live from Discord</span>'
+    : '<span class="badge badge-yellow" style="font-size:11px;"><i class="fa-solid fa-triangle-exclamation" style="font-size:10px;"></i> Set DISCORD_BOT_TOKEN in Vercel</span>';
+
   container.innerHTML += `
     <div class="page-header">
-      <div class="page-title">Dashboard Overview</div>
-      <div class="page-subtitle">Welcome back — here's what's happening in your server.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div class="page-title">Dashboard Overview</div>
+          <div class="page-subtitle">Welcome back, ${Auth.user?.username || 'Admin'} — here's your server at a glance.</div>
+        </div>
+        ${dataSource}
+      </div>
     </div>
 
     <div class="stats-grid">
-      ${statCard('fa-users',       guild.memberCount || '—', 'Total Members',    'purple',  '+12 this week', 'up')}
-      ${statCard('fa-wifi',        guild.onlineCount || '—', 'Members Online',   'green',   'Right now',     '')}
-      ${statCard('fa-gem',         guild.boostCount  || '—', 'Boosts',           'orange',  'Level ' + (guild.boostTier || '0'), '')}
-      ${statCard('fa-ticket',      '24',               'Open Tickets',     'blue',    '3 new today',   'up')}
-      ${statCard('fa-shield',      '156',              'Mod Actions',      'red',     'This month',     '')}
-      ${statCard('fa-star',        '1,204',            'XP Given Today',   'purple',  '+8%',            'up')}
+      ${statCard('fa-users',  memberCount,   'Total Members',  'purple', g.connected ? 'Live count' : 'Add bot token', '')}
+      ${statCard('fa-wifi',   onlineCount,   'Online Now',     'green',  g.connected ? 'Right now'  : 'Add bot token', '')}
+      ${statCard('fa-gem',    boostCount,    'Boosts',         'orange', 'Level ' + boostTier, '')}
+      ${statCard('fa-ticket', '—',           'Open Tickets',   'blue',   'Needs bot API', '')}
+      ${statCard('fa-shield', '—',           'Mod Actions',    'red',    'Needs bot API', '')}
+      ${statCard('fa-star',   '—',           'XP Today',       'purple', 'Needs bot API', '')}
     </div>
+
+    ${!g.connected ? `
+    <div class="card glass" style="border-color:rgba(245,158,11,0.3);margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="stat-icon orange" style="flex-shrink:0;"><i class="fa-solid fa-plug"></i></div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Connect your bot token to see live server data</div>
+          <div style="font-size:13px;color:var(--text-muted);">
+            Go to <strong>Vercel → Settings → Environment Variables</strong> and add
+            <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;">DISCORD_BOT_TOKEN</code>
+            and <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;">GUILD_ID</code>,
+            then redeploy.
+          </div>
+        </div>
+      </div>
+    </div>` : ''}
 
     <div class="section-grid left-heavy">
       <div class="card glass">
         <div class="card-header">
-          <div class="card-title"><i class="fa-solid fa-chart-bar"></i> Message Activity (7 Days)</div>
+          <div class="card-title"><i class="fa-solid fa-server"></i> Server Info</div>
         </div>
-        <div class="chart-container">
-          ${barChart([420,387,510,460,598,720,683], ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'])}
-        </div>
+        ${g.connected ? `
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Server Name</div></div>
+            <span style="font-size:13px;font-weight:600;">${g.name || '—'}</span>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Total Members</div></div>
+            <span class="badge badge-purple">${memberCount}</span>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Online Members</div></div>
+            <span class="badge badge-green">${onlineCount}</span>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Boost Level</div></div>
+            <span class="badge badge-orange">Level ${boostTier} · ${boostCount} boosts</span>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info"><div class="toggle-title">Server ID</div></div>
+            <span style="font-size:12px;color:var(--text-dim);font-family:monospace;">${g.id}</span>
+          </div>
+        ` : botNotConnected('Server stats require DISCORD_BOT_TOKEN')}
       </div>
 
       <div class="card glass">
         <div class="card-header">
-          <div class="card-title"><i class="fa-solid fa-bolt"></i> Bot Status</div>
+          <div class="card-title"><i class="fa-solid fa-bolt"></i> Bot Connection</div>
         </div>
         <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-title">Zenith Bot</div>
-            <div class="toggle-desc">API connection</div>
+          <div class="toggle-info"><div class="toggle-title">Discord API</div></div>
+          <span class="badge ${g.connected ? 'badge-green' : 'badge-red'}">${g.connected ? '✓ Connected' : '✗ No token'}</span>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-title">Bot API (metrics)</div></div>
+          <span class="badge badge-yellow">Not configured</span>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-title">Database</div></div>
+          <span class="badge badge-yellow">Not configured</span>
+        </div>
+
+        <div style="margin-top:16px;padding:14px;background:rgba(139,92,246,0.06);border-radius:var(--radius-sm);border:1px solid rgba(139,92,246,0.15);">
+          <div style="font-size:12px;font-weight:700;color:var(--accent-bright);margin-bottom:8px;">
+            <i class="fa-solid fa-circle-info"></i> To show live bot metrics
           </div>
-          <span class="badge badge-green"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Online</span>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">Uptime</div></div>
-          <span class="badge badge-purple">99.8%</span>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">API Latency</div></div>
-          <span class="badge badge-green">45ms</span>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">Shard</div></div>
-          <span class="badge badge-blue">0 / 1</span>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">Version</div></div>
-          <span class="badge badge-gray">v2.1.4</span>
+          <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">
+            Set <code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;">BOT_API_URL</code>
+            in Vercel env vars to your bot's API endpoint.
+            <br>Your bot must expose a <code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;">/status</code> route.
+          </div>
         </div>
       </div>
     </div>
@@ -248,26 +309,34 @@ function renderHome(container) {
       <div class="card glass">
         <div class="card-header">
           <div class="card-title"><i class="fa-solid fa-gavel"></i> Recent Mod Actions</div>
-          <a href="#/moderation" class="btn btn-ghost btn-sm">View All</a>
         </div>
-        ${modLogEntry('fa-ban','red','User banned','reason: spam','Case #156','2m ago')}
-        ${modLogEntry('fa-clock','orange','User timed out (10m)','rule violation','Case #155','15m ago')}
-        ${modLogEntry('fa-triangle-exclamation','yellow','Warning issued','inappropriate language','Case #154','1h ago')}
-        ${modLogEntry('fa-trash','blue','50 messages purged','#general','Case #153','2h ago')}
+        ${botNotConnected('Moderation logs require your bot to save cases to a database and expose a /api/modlogs endpoint.')}
       </div>
 
       <div class="card glass">
         <div class="card-header">
           <div class="card-title"><i class="fa-solid fa-ticket"></i> Recent Tickets</div>
-          <a href="#/tickets" class="btn btn-ghost btn-sm">View All</a>
         </div>
-        ${ticketRow('Support','User needs help with commands','Open','blue')}
-        ${ticketRow('Report','Reporting a rule-breaker','In Review','yellow')}
-        ${ticketRow('Appeal','Appealing a ban decision','Open','blue')}
-        ${ticketRow('Partnership','Partnership request','Closed','gray')}
+        ${botNotConnected('Ticket data requires your bot to save tickets to a database and expose a /api/tickets endpoint.')}
       </div>
     </div>
   `;
+}
+
+function botNotConnected(msg) {
+  return `
+    <div class="empty-state" style="padding:28px 16px;">
+      <i class="fa-solid fa-plug" style="font-size:28px;color:var(--accent-dim);opacity:0.6;margin-bottom:12px;"></i>
+      <h3 style="font-size:14px;">Bot API not connected</h3>
+      <p style="font-size:12px;line-height:1.6;">${msg}</p>
+    </div>
+  `;
+}
+
+function process_env(key) {
+  // Client-side can't read server env vars — always returns falsy
+  // Used as a flag placeholder; real check happens server-side
+  return false;
 }
 
 // ─── Page: Analytics ───────────────────────────────────────────────────────
@@ -1453,11 +1522,10 @@ async function boot() {
   const isAuthed = await Auth.load();
 
   if (isAuthed) {
-    // Show dashboard
     document.getElementById('login-page').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
 
-    // Populate sidebar user info
+    // Real user info from Discord OAuth
     if (Auth.user) {
       const avatarUrl = Auth.user.avatar
         ? `https://cdn.discordapp.com/avatars/${Auth.user.id}/${Auth.user.avatar}.png?size=64`
@@ -1467,20 +1535,35 @@ async function boot() {
       document.getElementById('user-tag').textContent = `#${Auth.user.discriminator || '0'}`;
     }
 
-    if (Auth.guild) {
-      const iconUrl = Auth.guild.icon
-        ? `https://cdn.discordapp.com/icons/${Auth.guild.id}/${Auth.guild.icon}.png?size=64`
+    // Show guild name immediately from basic info, then load full data
+    const guildPreview = Auth.guild;
+    if (guildPreview) {
+      const iconUrl = guildPreview.icon
+        ? `https://cdn.discordapp.com/icons/${guildPreview.id}/${guildPreview.icon}.png?size=64`
         : 'https://cdn.discordapp.com/embed/avatars/0.png';
       document.getElementById('guild-icon').src = iconUrl;
-      document.getElementById('guild-name').textContent = Auth.guild.name || 'Zenith Server';
+      document.getElementById('guild-name').textContent = guildPreview.name || 'Zenith Server';
     }
 
     initSidebar();
     navigate();
     window.addEventListener('hashchange', navigate);
 
+    // Load full guild info in background, refresh home page if open
+    Auth.loadGuildInfo().then(() => {
+      if (Auth.guildInfo) {
+        // Update sidebar with real icon
+        const iconUrl = Auth.guildInfo.icon
+          ? `https://cdn.discordapp.com/icons/${Auth.guildInfo.id}/${Auth.guildInfo.icon}.png?size=64`
+          : 'https://cdn.discordapp.com/embed/avatars/0.png';
+        document.getElementById('guild-icon').src = iconUrl;
+        document.getElementById('guild-name').textContent = Auth.guildInfo.name || 'Zenith Server';
+        // Re-render home page with real data if currently on it
+        if (getRoute() === '/') navigate();
+      }
+    });
+
   } else {
-    // Show login page
     document.getElementById('login-page').classList.remove('hidden');
   }
 }
