@@ -1,6 +1,6 @@
 /**
  * /api/auth/callback
- * Discord OAuth2 callback — exchanges code for token, stores session cookie.
+ * Discord OAuth2 callback — exchanges code for token, stores minimal session cookie.
  * Vercel Serverless Function (Node.js)
  */
 
@@ -27,30 +27,40 @@ module.exports = async (req, res) => {
       }),
     });
 
-    if (!tokenRes.ok) throw new Error('Token exchange failed');
+    if (!tokenRes.ok) {
+      const err = await tokenRes.text();
+      console.error('[callback] Token exchange failed:', err);
+      return res.redirect('/?error=token_failed');
+    }
+
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
 
-    // 2. Fetch user info
+    // 2. Fetch minimal user info
     const userRes = await fetch(`${oauth.DISCORD_API}/users/@me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!userRes.ok) throw new Error('Failed to fetch user');
+
+    if (!userRes.ok) {
+      return res.redirect('/?error=user_failed');
+    }
+
     const user = await userRes.json();
 
-    // 3. Fetch user's guilds
-    const guildsRes = await fetch(`${oauth.DISCORD_API}/users/@me/guilds`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const guilds = guildsRes.ok ? await guildsRes.json() : [];
+    // 3. Store MINIMAL data in cookie (keep it well under 4KB)
+    //    Do NOT store guilds array here — it can be 50KB+
+    const sessionData = {
+      userId:        user.id,
+      username:      user.username,
+      discriminator: user.discriminator || '0',
+      avatar:        user.avatar || null,
+      accessToken,
+      createdAt:     Date.now(),
+    };
 
-    // 4. Store in a signed session cookie (base64 encoded payload)
-    //    For production, replace with JWT signed with SESSION_SECRET
-    const sessionPayload = Buffer.from(
-      JSON.stringify({ user, guilds, accessToken, createdAt: Date.now() })
-    ).toString('base64');
+    const sessionPayload = Buffer.from(JSON.stringify(sessionData)).toString('base64');
 
-    // Set HttpOnly cookie (7-day expiry)
+    // 4. Set HttpOnly cookie — 7-day expiry
     res.setHeader('Set-Cookie',
       `rz_session=${sessionPayload}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`
     );
@@ -59,7 +69,7 @@ module.exports = async (req, res) => {
     res.redirect('/#/');
 
   } catch (err) {
-    console.error('[auth/callback]', err);
-    res.status(500).send('Authentication failed. Please try again.');
+    console.error('[auth/callback] Unexpected error:', err);
+    res.redirect('/?error=server_error');
   }
 };
