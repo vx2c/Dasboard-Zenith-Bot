@@ -105,6 +105,36 @@ const Auth = {
   }
 };
 
+const AppState = {
+  botStatus: null,
+};
+
+async function loadBotStatus() {
+  try {
+    const res = await fetch('/api/bot/status');
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      AppState.botStatus = { online: false, error: data?.error || 'Bot status unavailable' };
+      return;
+    }
+
+    const data = await res.json();
+    AppState.botStatus = {
+      online:     data.online ?? true,
+      version:    data.version || 'Unknown',
+      uptime:     data.uptime ?? 0,
+      ping:       data.ping ?? data.apiLatency ?? 0,
+      cpuUsage:   data.cpuUsage ?? 0,
+      ramUsageMB: data.ramUsageMB ?? data.ramUsage ?? 0,
+      ramTotalMB: data.ramTotalMB ?? data.ramTotal ?? 0,
+      shards:     data.shards || { current: 0, total: 1 },
+      apiLatency: data.apiLatency ?? 0,
+    };
+  } catch (err) {
+    AppState.botStatus = { online: false, error: err.message || 'Fetch failed' };
+  }
+}
+
 // ─── Toast Notifications ───────────────────────────────────────────────────
 function showToast(message, type = 'info', duration = 3500) {
   const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
@@ -199,7 +229,8 @@ function toggleMobileSidebar() {
 // ─── Page: Home ────────────────────────────────────────────────────────────
 function renderHome(container) {
   const g = Auth.guildInfo || {};
-  const botConnected = !!process_env('BOT_API_URL');
+  const botStatus = AppState.botStatus || {};
+  const botConnected = botStatus.online === true;
 
   // Real numbers from Discord API (only available if bot token is set)
   const memberCount = g.memberCount ? g.memberCount.toLocaleString() : '—';
@@ -285,7 +316,7 @@ function renderHome(container) {
         </div>
         <div class="toggle-row">
           <div class="toggle-info"><div class="toggle-title">Bot API (metrics)</div></div>
-          <span class="badge badge-yellow">Not configured</span>
+          <span class="badge ${botConnected ? 'badge-green' : 'badge-red'}">${botConnected ? 'Connected' : 'Offline'}</span>
         </div>
         <div class="toggle-row">
           <div class="toggle-info"><div class="toggle-title">Database</div></div>
@@ -331,6 +362,20 @@ function botNotConnected(msg) {
       <p style="font-size:12px;line-height:1.6;">${msg}</p>
     </div>
   `;
+}
+
+function formatUptime(ms) {
+  if (!ms || ms <= 0) return '0s';
+  const seconds = Math.floor(ms / 1000);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (!parts.length) parts.push(`${seconds}s`);
+  return parts.join(' ');
 }
 
 function process_env(key) {
@@ -403,6 +448,15 @@ function renderAnalytics(container) {
 
 // ─── Page: Bot Status ──────────────────────────────────────────────────────
 function renderBotStatus(container) {
+  const botStatus = AppState.botStatus || {};
+  const online = botStatus.online === true;
+  const uptime = formatUptime(botStatus.uptime);
+  const ramUsage = botStatus.ramUsageMB != null ? `${botStatus.ramUsageMB} MB` : '—';
+  const ramTotal = botStatus.ramTotalMB != null ? `${botStatus.ramTotalMB} MB` : '--';
+  const cpuUsage = botStatus.cpuUsage != null ? `${botStatus.cpuUsage}%` : '—';
+  const latency = botStatus.ping != null ? `${botStatus.ping}ms` : '—';
+  const version = botStatus.version || 'Unknown';
+
   container.innerHTML += `
     <div class="page-header">
       <div class="page-title">Bot Status</div>
@@ -410,12 +464,12 @@ function renderBotStatus(container) {
     </div>
 
     <div class="stats-grid">
-      ${statCard('fa-microchip','12%','CPU Usage','green','Normal','')}
-      ${statCard('fa-memory','384 MB','RAM Usage','blue','of 1 GB','')}
-      ${statCard('fa-clock','14d 6h','Uptime','purple','99.8% SLA','')}
-      ${statCard('fa-wifi','45ms','API Latency','green','Excellent','')}
-      ${statCard('fa-network-wired','1','Shards','blue','0 / 1 active','')}
-      ${statCard('fa-code-branch','v2.1.4','Version','orange','Up to date','')}
+      ${statCard('fa-microchip', cpuUsage, 'CPU Usage', 'green', online ? 'Normal' : 'Offline', '')}
+      ${statCard('fa-memory', ramUsage, 'RAM Usage', 'blue', `of ${ramTotal}`, '')}
+      ${statCard('fa-clock', uptime, 'Uptime', 'purple', online ? 'Live' : 'Offline', '')}
+      ${statCard('fa-wifi', latency, 'API Latency', online ? 'Healthy' : 'Unknown', 'green', '')}
+      ${statCard('fa-network-wired', `${botStatus.shards?.current || 0}/${botStatus.shards?.total || 1}`, 'Shards', 'blue', online ? 'Active' : 'Inactive', '')}
+      ${statCard('fa-code-branch', version, 'Version', 'orange', online ? 'Up to date' : 'Unknown', '')}
     </div>
 
     <div class="section-grid">
@@ -1535,7 +1589,7 @@ async function boot() {
       document.getElementById('user-tag').textContent = `#${Auth.user.discriminator || '0'}`;
     }
 
-    // Show guild name immediately from basic info, then load full data
+    // Show guild name immediately from basic info
     const guildPreview = Auth.guild;
     if (guildPreview) {
       const iconUrl = guildPreview.icon
@@ -1549,19 +1603,19 @@ async function boot() {
     navigate();
     window.addEventListener('hashchange', navigate);
 
-    // Load full guild info in background, refresh home page if open
-    Auth.loadGuildInfo().then(() => {
-      if (Auth.guildInfo) {
-        // Update sidebar with real icon
-        const iconUrl = Auth.guildInfo.icon
-          ? `https://cdn.discordapp.com/icons/${Auth.guildInfo.id}/${Auth.guildInfo.icon}.png?size=64`
-          : 'https://cdn.discordapp.com/embed/avatars/0.png';
-        document.getElementById('guild-icon').src = iconUrl;
-        document.getElementById('guild-name').textContent = Auth.guildInfo.name || 'Zenith Server';
-        // Re-render home page with real data if currently on it
-        if (getRoute() === '/') navigate();
-      }
-    });
+    // Load guild info and bot status, then refresh UI on success
+    await Promise.all([Auth.loadGuildInfo(), loadBotStatus()]);
+
+    if (Auth.guildInfo) {
+      const iconUrl = Auth.guildInfo.icon
+        ? `https://cdn.discordapp.com/icons/${Auth.guildInfo.id}/${Auth.guildInfo.icon}.png?size=64`
+        : 'https://cdn.discordapp.com/embed/avatars/0.png';
+      document.getElementById('guild-icon').src = iconUrl;
+      document.getElementById('guild-name').textContent = Auth.guildInfo.name || 'Zenith Server';
+    }
+
+    // Re-render current route after real data loads
+    navigate();
 
   } else {
     document.getElementById('login-page').classList.remove('hidden');

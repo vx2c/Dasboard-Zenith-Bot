@@ -23,16 +23,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Fallback — placeholder data shown while bot is not yet connected
-  res.json({
-    online:     true,
-    version:    'v2.1.4',
-    uptime:     1234567,        // milliseconds
-    ping:       45,             // ms
-    cpuUsage:   12,             // percent
-    ramUsageMB: 384,
-    ramTotalMB: 1024,
-    shards:     { current: 0, total: 1 },
-    apiLatency: 45,
-  });
+  // No live bot connection configured.
+  return res.status(503).json({ error: 'BOT_API_URL not configured. Please set this environment variable to your bot status endpoint.' });
 };
