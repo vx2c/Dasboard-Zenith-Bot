@@ -10,11 +10,11 @@
 const botConfig = {
   // Your Discord Application Client ID
   // Found at: https://discord.com/developers/applications → Your App → OAuth2
-  CLIENT_ID: process.env.DISCORD_CLIENT_ID || '1529558164544946288',
+  CLIENT_ID: process.env.DISCORD_CLIENT_ID || 'YOUR_DISCORD_CLIENT_ID',
 
   // Your Discord Server (Guild) ID
   // Right-click your server → Copy Server ID (enable Developer Mode in settings)
-  GUILD_ID: process.env.GUILD_ID || '1529556626300866670',
+  GUILD_ID: process.env.GUILD_ID || 'YOUR_GUILD_ID',
 
   // The display name of your bot
   BOT_NAME: process.env.BOT_NAME || 'Zenith',
